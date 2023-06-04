@@ -30,7 +30,8 @@ mongoose.set('strictQuery', true);
 const userSchema = new mongoose.Schema({
     email: String,
     password: String,
-    googleId: String
+    googleId: String,
+    secret: String
 });
 
 userSchema.plugin(passportLocalMongoose);
@@ -89,10 +90,13 @@ app.get("/register", (req, res) => {
 });
 
 app.get("/secrets", (req, res) => {
-    if(req.isAuthenticated())
-        res.render("secrets");
-    else
-        res.redirect("/login");
+    User.find({secret: {$ne: null}}, (err, users) => {
+        if(err)
+            res.redirect("/");
+        else {
+            res.render("secrets", {usersWithSecrets: users});
+        }
+    })
 });
 
 app.post("/register", (req, res) => {
@@ -112,6 +116,30 @@ app.get("/login", (req, res) => {
     res.render("login");
 });
 
+app.get("/submit", (req, res) => {
+    if(req.isAuthenticated())
+        res.render("submit");
+    else
+        res.redirect("/login");
+});
+
+app.post("/submit", (req, res) => {
+    const secret = req.body.secret;
+
+    User.findById(req.user._id, (err, user) => {
+        if(err)
+            res.redirect("/login");
+        else {
+            if(user) {
+                user.secret = secret;
+                user.save(err => {
+                    res.redirect("/secrets");
+                })
+            } else 
+                res.redirect("/login");
+        }
+    })
+})
 app.post("/login", (req, res) => {
     const user = new User({
         username: req.body.username, 
